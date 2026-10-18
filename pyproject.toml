@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-credit"
+version = "0.1.0"
+description = "Local video credit overlays and source end cards"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["PySide6>=6.8,<7", "qrcode>=8,<9"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pyinstaller>=6.16,<7"]
+
+[project.gui-scripts]
+auto-credit = "auto_credit.app:main"
+
+[tool.setuptools.packages.find]
+include = ["auto_credit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
