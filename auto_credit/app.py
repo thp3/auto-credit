@@ -187,7 +187,7 @@ class Window(QMainWindow):
         controls.addWidget(self.preview_button)
         controls.addStretch()
         right.addLayout(controls)
-        self.preview_hint = QLabel("預覽為靜態擷取畫面；輸出影片會全程顯示 credit。", objectName="muted")
+        self.preview_hint = QLabel("預覽為靜態擷取畫面；輸出會全程顯示 [平台名] @創作者名。", objectName="muted")
         self.preview_hint.setWordWrap(True)
         right.addWidget(self.preview_hint)
         columns.addLayout(right, 1)

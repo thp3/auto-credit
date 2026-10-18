@@ -18,7 +18,7 @@ def test_literal_text_and_cjk_layout():
     assert QRawFont.fromFont(font(24)).supportsCharacter("影"), "CJK font required for visual QA"
     credit = Credit("自訂平台", "@原作者 ' : % [id]", "https://example.com/原片?q=a&b=2")
     credit.validate()
-    assert credit.overlay_text == "credit: @原作者 ' : % [id]"
+    assert credit.overlay_text == "[自訂平台] @原作者 ' : % [id]"
     assert credit.url in credit.caption
     for width, height in [(1920, 1080), (1080, 1920), (640, 360), (360, 640)]:
         watermark = overlay(credit, width, height)

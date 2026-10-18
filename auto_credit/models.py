@@ -37,7 +37,8 @@ class Credit:
 
     @property
     def overlay_text(self) -> str:
-        return f"credit: {self.author}"
+        author = self.author.strip().lstrip("@").strip()
+        return f"[{self.platform.strip()}] @{author}"
 
     @property
     def caption(self) -> str:
