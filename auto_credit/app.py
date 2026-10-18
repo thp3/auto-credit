@@ -5,7 +5,7 @@ from threading import Event
 from PySide6.QtCore import QSettings, QSize, QThread, QUrl, Signal, Qt
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
+    QApplication, QComboBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout,
     QFrame, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
     QProgressBar, QPushButton, QScrollArea, QSizePolicy, QTabWidget, QVBoxLayout, QWidget,
 )
@@ -13,6 +13,24 @@ from PySide6.QtWidgets import (
 from .artwork import composite, end_card, ensure_fonts, overlay
 from .engine import Cancelled, executable, export_video, frame, probe
 from .models import Credit
+
+
+def create_save_dialog(parent: QWidget | None, suggested: Path) -> QFileDialog:
+    """Use a predictable save dialog that accepts files not created yet."""
+    dialog = QFileDialog(parent)
+    # Set this before other properties, as required by QFileDialog. The native
+    # Windows picker has rejected new output names on affected installations.
+    dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+    dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, True)
+    dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+    dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+    dialog.setWindowTitle("儲存標註影片（請使用新檔名）")
+    dialog.setNameFilter("MP4 影片 (*.mp4)")
+    dialog.setDefaultSuffix("mp4")
+    dialog.setLabelText(QFileDialog.DialogLabel.Accept, "儲存")
+    dialog.setDirectory(str(suggested.parent))
+    dialog.selectFile(suggested.name)
+    return dialog
 
 
 class Job(QThread):
@@ -85,6 +103,10 @@ QProgressBar { background:#101a2a; border:0; border-radius:5px; text-align:cente
 QProgressBar::chunk { background:#3caa95; border-radius:5px; }
 QScrollArea { border:0; background:transparent; }
 QMessageBox { background:#192436; }
+QFileDialog { background:#192436; }
+QFileDialog QAbstractItemView { background:#101a2a; color:#e7edf5; border:1px solid #3a4a62;
+    selection-background-color:#287f70; selection-color:#ffffff; }
+QFileDialog QHeaderView::section, QFileDialog QToolButton { background:#293b53; color:#e7edf5; }
 QToolTip { background:#293b53; color:#ffffff; border:1px solid #71dbc4; padding:6px; }
 """
 
@@ -346,11 +368,18 @@ class Window(QMainWindow):
             executable("ffmpeg")
             name = f"{self.source.stem}_credit.mp4"
             directory = Path(str(self.settings.value("output_dir", str(self.source.parent))))
-            path, _ = QFileDialog.getSaveFileName(self, "儲存標註影片（請使用新檔名）", str(directory / name),
-                                                 "MP4 影片 (*.mp4)", options=QFileDialog.Option.DontConfirmOverwrite)
-            if not path:
-                return
-            target = Path(path)
+            if not directory.is_dir():
+                directory = self.source.parent
+            dialog = create_save_dialog(self, directory / name)
+            try:
+                if dialog.exec() != QDialog.DialogCode.Accepted:
+                    return
+                selected = dialog.selectedFiles()
+                if not selected:
+                    return
+                target = Path(selected[0])
+            finally:
+                dialog.deleteLater()
             if not target.suffix:
                 target = target.with_suffix(".mp4")
             if target.exists():

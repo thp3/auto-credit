@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtWidgets import QApplication, QDialog
 
 from .artwork import composite, end_card, overlay
 from .engine import executable, export_video, frame, probe, run_process
@@ -24,7 +24,7 @@ def run_self_check(folder: Path) -> int:
         report["ffmpeg"] = executable("ffmpeg")
         report["ffprobe"] = executable("ffprobe")
         source = run / "source.mp4"
-        target = run / "credited.mp4"
+        target = run / "測試影片 (1)_credit.mp4"
         run_process([executable("ffmpeg"), "-hide_banner", "-loglevel", "error", "-nostdin",
                      "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=24:duration=1",
                      "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)], Event())
@@ -36,10 +36,28 @@ def run_self_check(folder: Path) -> int:
             if not card.save(str(run / f"end-{platform.lower()}.png")):
                 raise ValueError(f"Cannot save platform end card: {platform}")
         report["logos"] = ["YouTube", "Bilibili", "TikTok"]
-        result = export_video(source, target, credit, Event())
-        from .app import Window
+        from .app import Window, create_save_dialog
         settings = QSettings(str(run / "settings.ini"), QSettings.Format.IniFormat)
         window = Window(settings)
+        dialog = create_save_dialog(window, target)
+        def accept_destination():
+            dialog.grab().save(str(run / "save-dialog.png"))
+            dialog.accept()
+        watchdog = QTimer(dialog)
+        watchdog.setSingleShot(True)
+        watchdog.timeout.connect(dialog.reject)
+        watchdog.start(5000)
+        QTimer.singleShot(50, accept_destination)
+        try:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                raise ValueError("Save dialog did not accept a new output filename")
+            if [Path(value) for value in dialog.selectedFiles()] != [target] or target.exists():
+                raise ValueError("Save dialog did not return the expected new output path")
+            report["save_dialog_accepts_new_file"] = True
+        finally:
+            watchdog.stop()
+            dialog.deleteLater()
+        result = export_video(source, target, credit, Event())
         window.author.setText(credit.author)
         window.url.setText(credit.url)
         window.seconds.setValue(1)

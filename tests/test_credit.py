@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from PySide6.QtGui import QRawFont
 
@@ -66,6 +67,30 @@ def test_unknown_platform_has_text_only():
     assert platform_logo("自訂平台") is None
     assert platform_logo("Instagram") is None
     assert not end_card(Credit("自訂平台", "@作者", "https://example.com/a"), 640, 360).isNull()
+
+
+@pytest.mark.parametrize("filename", ["10月18日 (1)_credit.mp4", "新影片"])
+def test_save_dialog_accepts_new_filename(qt_app, tmp_path, filename):
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QDialog, QFileDialog
+    from auto_credit.app import create_save_dialog
+    target = tmp_path / filename
+    expected = target if target.suffix else target.with_suffix(".mp4")
+    dialog = create_save_dialog(None, target)
+    assert dialog.acceptMode() == QFileDialog.AcceptMode.AcceptSave
+    assert dialog.fileMode() == QFileDialog.FileMode.AnyFile
+    assert dialog.testOption(QFileDialog.Option.DontUseNativeDialog)
+    assert not expected.exists()
+    QTimer.singleShot(50, dialog.accept)
+    watchdog = QTimer(dialog)
+    watchdog.setSingleShot(True)
+    watchdog.timeout.connect(dialog.reject)
+    watchdog.start(3000)
+    assert dialog.exec() == QDialog.DialogCode.Accepted
+    watchdog.stop()
+    assert [Path(value) for value in dialog.selectedFiles()] == [expected]
+    assert not expected.exists(), "Selecting a destination must not create a placeholder file"
+    dialog.deleteLater()
 
 
 @pytest.mark.parametrize("platform", ["YouTube", "Bilibili", "TikTok"])

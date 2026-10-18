@@ -130,17 +130,16 @@ def test_delayed_audio_stays_in_sync_and_ending_is_silent(tmp_path):
 
 
 def test_gui_load_preview_and_export(qt_app, tmp_path, monkeypatch):
-    from PySide6.QtCore import QSettings
-    from PySide6.QtWidgets import QApplication, QFileDialog
+    from PySide6.QtCore import QSettings, QTimer
+    from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
     from auto_credit.app import Window
     import time
     source = tmp_path / "input.mp4"
-    target = tmp_path / "gui-credit.mp4"
+    target = tmp_path / "10月18日 (1)_credit.mp4"
     make_video(source, audio=False)
     window = Window(QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat))
     errors = []
     monkeypatch.setattr(window, "show_error", errors.append)
-    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), ""))
     def finish():
         deadline = time.monotonic() + 20
         while window.job is not None and time.monotonic() < deadline:
@@ -164,7 +163,26 @@ def test_gui_load_preview_and_export(qt_app, tmp_path, monkeypatch):
     assert not window.end_preview.image.isNull()
     window.copy_caption()
     assert "@作者" in QApplication.clipboard().text()
+    # Exercise the actual save dialog rather than bypassing it with a stub.
+    observed = []
+    def accept_new_file():
+        dialog = QApplication.activeModalWidget()
+        if isinstance(dialog, QFileDialog):
+            observed.append(not target.exists())
+            dialog.selectFile(str(target))
+            dialog.accept()
+    def dismiss_stuck_dialogs():
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, (QFileDialog, QMessageBox)):
+                widget.reject()
+    watchdog = QTimer(window)
+    watchdog.setSingleShot(True)
+    watchdog.timeout.connect(dismiss_stuck_dialogs)
+    watchdog.start(3000)
+    QTimer.singleShot(50, accept_new_file)
     window.start_export()
+    watchdog.stop()
+    assert observed == [True]
     finish()
     assert target.is_file()
     assert window.progress.value() == 100
