@@ -131,6 +131,7 @@ class Window(QMainWindow):
         form.setSpacing(10)
         self.platform = QComboBox()
         self.platform.setEditable(True)
+        self.platform.setToolTip("YouTube、Bilibili、TikTok 的結尾資訊卡會自動顯示平台 logo。")
         self.platform.addItems(["YouTube", "Instagram", "TikTok", "X", "Facebook", "Bilibili", "其他"])
         self.platform.setCurrentText(str(self.settings.value("platform", "YouTube")))
         self.author = QLineEdit()

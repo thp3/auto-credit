@@ -7,6 +7,7 @@
 - 選取或拖入單支影片，選擇／自訂原始平台，填入作者 ID 和原片網址。
 - 原片播放期間，全程在右上角顯示 `credit: 原作者ID`，白字搭配半透明深色底。
 - 自動附加結尾資訊卡，顯示平台、作者、完整網址與 QR Code；預設 4 秒，可調整為 1–30 秒。
+- 結尾會依平台自動顯示 YouTube、Bilibili 或 TikTok logo，使用隨程式附帶的素材，預覽與輸出一致。其他平台維持文字標示。
 - 中文字型、自動換行、依影片短邊縮放的字級（1.5–5%）。
 - 可選擷取時間，預覽標註畫面及結尾卡；預覽與輸出共用版面程式。
 - 背景輸出、進度、取消、完成後開啟影片或資料夾。
@@ -63,6 +64,8 @@ $env:AUTO_CREDIT_FFPROBE = 'C:\tools\ffmpeg\bin\ffprobe.exe'
 
 預覽是靜態畫面，不是影片播放器。一般 MP4 畫面中的文字網址無法點擊；結尾 QR Code 使用完整輸入連結，未使用短網址服務。連結只做格式檢查，不會連線確認內容、追蹤轉址或自動查詢作者。
 
+平台 logo 支援選單中的 YouTube、Bilibili、TikTok，以及自訂輸入的 `YT`、`哔哩哔哩`、`嗶哩嗶哩`、`B站`、`Tik Tok`（忽略大小寫與空白）。素材放在 `auto_credit/assets/logos/`，會一併包含在安裝套件與 Windows 打包結果，不依賴 Downloads 資料夾。
+
 ## 輸出規格與範圍
 
 | 項目 | 行為 |
@@ -103,6 +106,8 @@ $env:AUTO_CREDIT_FFPROBE = 'C:\tools\ffmpeg\bin\ffprobe.exe'
 
 可指定其他 Python：`.\scripts\build.ps1 -Python 'C:\path\to\python.exe'`。若本機政策禁止執行腳本，可開啟腳本並在終端機執行其中的打包指令。正式分發前應在乾淨的 Windows 電腦驗證，並依實際使用的 Qt／FFmpeg build 附上相應授權文字與所需來源資訊；此 repository 不收錄第三方執行檔。
 
+若原路徑的程式正在執行，腳本會先停止打包並提示關閉。也可使用 `.\scripts\build.ps1 -OutputDirectory 'dist\new-version'` 產生獨立新版，執行檔會位於指定目錄下的 `AutoCredit\AutoCredit.exe`。
+
 Qt 打包參考：[官方部署文件](https://doc.qt.io/qtforpython-6/deployment/index.html)。
 
 打包後可執行完整自我檢查，產生一段測試影片、實際輸出、預覽截圖及 JSON 報告。下列命令不會開啟可見視窗；`report.json` 的 `ok` 應為 `true`，執行檔結束碼應為 0：
@@ -123,6 +128,7 @@ auto_credit/
   app.py         繁體中文介面、背景工作及使用者設定
   models.py      來源資料與輸入驗證
   artwork.py     共用標註、中文字型、結尾卡與 QR Code
+  logos.py       平台 logo 載入與別名辨識
   engine.py      FFprobe、FFmpeg、進度、取消及輸出驗證
 scripts/
   build.ps1      Windows onedir 打包，包含 FFmpeg／FFprobe

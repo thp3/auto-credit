@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication
 from .artwork import composite, end_card, overlay
 from .engine import executable, export_video, frame, probe, run_process
 from .models import Credit
+from .logos import platform_logo
 
 
 def run_self_check(folder: Path) -> int:
@@ -28,6 +29,13 @@ def run_self_check(folder: Path) -> int:
                      "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=24:duration=1",
                      "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)], Event())
         credit = Credit("YouTube", "@原作者_test", "https://example.com/original", 1)
+        for platform in ("YouTube", "Bilibili", "TikTok"):
+            if platform_logo(platform) is None:
+                raise ValueError(f"Missing platform logo: {platform}")
+            card = end_card(Credit(platform, credit.author, credit.url, 1), 640, 360)
+            if not card.save(str(run / f"end-{platform.lower()}.png")):
+                raise ValueError(f"Cannot save platform end card: {platform}")
+        report["logos"] = ["YouTube", "Bilibili", "TikTok"]
         result = export_video(source, target, credit, Event())
         from .app import Window
         settings = QSettings(str(run / "settings.ini"), QSettings.Format.IniFormat)

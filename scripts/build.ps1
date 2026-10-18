@@ -1,9 +1,18 @@
-param([string]$Python = ".\.venv\Scripts\python.exe")
+param(
+    [string]$Python = ".\.venv\Scripts\python.exe",
+    [string]$OutputDirectory = "dist"
+)
 $ErrorActionPreference = 'Stop'
 $buildPathBefore = $env:PATH
 $buildQtBefore = $env:QT_QPA_PLATFORM
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
+    $buildDistRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
+    $buildExe = Join-Path $buildDistRoot 'AutoCredit\AutoCredit.exe'
+    $buildRunning = Get-Process -Name AutoCredit -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $buildExe }
+    if ($buildRunning) {
+        throw 'The target application is running. Close it or use -OutputDirectory dist\new-version.'
+    }
     $buildPython = (Get-Command $Python -ErrorAction Stop).Source
     $ffmpegPath = (Get-Command ffmpeg -ErrorAction Stop).Source
     $ffprobePath = (Get-Command ffprobe -ErrorAction Stop).Source
@@ -13,10 +22,11 @@ try {
     # In particular, Qt may require Windows' ICU rather than another app's ICU.
     $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot;$(Split-Path -Parent $buildPython)"
     & $buildPython -m PyInstaller --noconfirm --clean --windowed --onedir --name AutoCredit `
+        --distpath $buildDistRoot `
+        --collect-data auto_credit `
         --add-binary "${ffmpegPath};bin" --add-binary "${ffprobePath};bin" `
         scripts/entry.py
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
-    $buildExe = Join-Path (Get-Location) 'dist\AutoCredit\AutoCredit.exe'
     $buildCheckDir = Join-Path (Get-Location) 'build\packaged-check'
     $env:QT_QPA_PLATFORM = 'offscreen'
     $buildCheck = Start-Process -FilePath $buildExe -ArgumentList '--self-check', ('"{0}"' -f $buildCheckDir) -WindowStyle Hidden -PassThru
@@ -28,7 +38,7 @@ try {
     $buildReport = Get-Content -LiteralPath (Join-Path $buildCheckDir 'report.json') -Raw | ConvertFrom-Json
     if (-not $buildReport.ok) { throw "Packaged self-check failed: $($buildReport.error)" }
     Write-Host 'Packaged self-check passed (real MP4 export and Qt preview).'
-    Write-Host 'Built dist\AutoCredit\AutoCredit.exe. Distribute the complete AutoCredit folder.'
+    Write-Host "Built $buildExe. Distribute the complete AutoCredit folder."
 } finally {
     $env:PATH = $buildPathBefore
     $env:QT_QPA_PLATFORM = $buildQtBefore

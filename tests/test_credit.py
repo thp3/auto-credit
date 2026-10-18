@@ -4,6 +4,7 @@ from PySide6.QtGui import QRawFont
 
 from auto_credit.artwork import end_card, font, overlay
 from auto_credit.models import Credit
+from auto_credit.logos import platform_logo
 
 
 @pytest.mark.parametrize("url", ["", "javascript:alert(1)", "https://", "https://a.test/a b",
@@ -53,3 +54,33 @@ def test_qt_window_layout_and_preview(qt_app, tmp_path):
     assert window.end_preview.image.width() == 1080
     assert window.credit().author == credit.author
     window.close()
+
+
+@pytest.mark.parametrize("name", ["YouTube", " yt ", "Bilibili", "嗶哩嗶哩", "哔哩哔哩", "B站", "TikTok", "tik tok"])
+def test_platform_logos_and_aliases(name):
+    logo = platform_logo(name)
+    assert logo is not None and not logo.isNull()
+
+
+def test_unknown_platform_has_text_only():
+    assert platform_logo("自訂平台") is None
+    assert platform_logo("Instagram") is None
+    assert not end_card(Credit("自訂平台", "@作者", "https://example.com/a"), 640, 360).isNull()
+
+
+@pytest.mark.parametrize("platform", ["YouTube", "Bilibili", "TikTok"])
+@pytest.mark.parametrize("dimensions", [(640, 360), (360, 640), (320, 240)])
+def test_end_card_actually_contains_platform_brand_colors(platform, dimensions):
+    image = end_card(Credit(platform, "@作者", "https://example.com/original"), *dimensions)
+    count = 0
+    for y in range(image.height()):
+        for x in range(image.width()):
+            color = image.pixelColor(x, y)
+            if platform == "YouTube":
+                matches = color.red() > 180 and color.green() < 90 and color.blue() < 90
+            elif platform == "Bilibili":
+                matches = color.red() < 70 and color.green() > 80 and color.blue() > 110
+            else:
+                matches = color.red() > 200 and color.green() < 100 and color.blue() > 50
+            count += matches
+    assert count > 5, "Brand pixels must be present in the rendered end card"

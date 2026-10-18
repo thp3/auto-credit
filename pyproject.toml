@@ -19,5 +19,8 @@ auto-credit = "auto_credit.app:main"
 [tool.setuptools.packages.find]
 include = ["auto_credit*"]
 
+[tool.setuptools.package-data]
+auto_credit = ["assets/logos/*.png", "assets/logos/*.svg", "assets/logos/README.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

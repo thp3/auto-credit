@@ -12,6 +12,7 @@ from PySide6.QtGui import (
 )
 
 from .models import Credit
+from .logos import platform_logo
 
 
 @lru_cache(maxsize=1)
@@ -110,19 +111,25 @@ def end_card(credit: Credit, width: int, height: int) -> QImage:
     margin = short * .075
     available = width - margin * 2
     qr = qr_image(credit.url, round(short * .24))
+    logo = platform_logo(credit.platform)
     # Fit the complete URL and author. Never truncate the encoded source text.
     size = max(10, short * .037)
     for _ in range(40):
+        logo_height = size * 1.8 if logo is not None else 0
+        logo_width = logo_height * logo.width() / logo.height() if logo is not None else 0
+        logo_gap = size * .5 if logo is not None else 0
         rows = []
-        for text, multiplier, bold, color in (
+        for index, (text, multiplier, bold, color) in enumerate((
             ("影片來源", 1.5, True, "#ffffff"),
             (f"平台：{credit.platform}", 1, False, "#b8c7da"),
             (f"原作者：{credit.author}", 1.08, True, "#ffffff"),
             ("原片連結", .8, False, "#71dbc4"),
             (credit.url, .75, False, "#b8c7da"),
-        ):
-            layout, row_height = text_layout(text, font(size * multiplier, bold), available)
-            rows.append((layout, row_height, color))
+        )):
+            inset = logo_width + logo_gap if index == 1 else 0
+            layout, text_height = text_layout(text, font(size * multiplier, bold), available - inset)
+            row_height = max(text_height, logo_height) if index == 1 else text_height
+            rows.append((layout, row_height, color, inset, text_height))
         gap = size * .6
         total = sum(row[1] for row in rows) + gap * 5 + qr.height() + size * 1.5
         if total <= height - margin * 2 or size <= 8:
@@ -133,9 +140,13 @@ def end_card(credit: Credit, width: int, height: int) -> QImage:
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     y = (height - total) / 2
-    for layout, row_height, color in rows:
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    for layout, row_height, color, inset, text_height in rows:
+        if inset:
+            painter.drawImage(QRectF(margin, y + (row_height - logo_height) / 2,
+                                     logo_width, logo_height), logo)
         painter.setPen(QColor(color))
-        layout.draw(painter, QPointF(margin, y))
+        layout.draw(painter, QPointF(margin + inset, y + (row_height - text_height) / 2))
         y += row_height + gap
     painter.drawImage(QPointF(margin, y), qr)
     painter.setPen(QColor("#8193aa"))
